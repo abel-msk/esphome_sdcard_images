@@ -89,40 +89,5 @@ namespace esphome
             double x_scale_ = 1.0;
             double y_scale_ = 1.0;
         };
-
-        class DownloadBuffer
-        {
-        public:
-            DownloadBuffer(size_t size);
-
-            virtual ~DownloadBuffer() { this->allocator_.deallocate(this->buffer_, this->size_); }
-
-            uint8_t *data(size_t offset = 0);
-
-            uint8_t *append() { return this->data(this->unread_); }
-
-            size_t unread() const { return this->unread_; }
-            size_t size() const { return this->size_; }
-            size_t free_capacity() const { return this->size_ - this->unread_; }
-
-            size_t read(size_t len);
-            size_t write(size_t len)
-            {
-                this->unread_ += len;
-                return this->unread_;
-            }
-
-            void reset() { this->unread_ = 0; }
-
-            size_t resize(size_t size);
-
-        protected:
-            RAMAllocator<uint8_t> allocator_{};
-            uint8_t *buffer_;
-            size_t size_;
-            /** Total number of downloaded bytes not yet read. */
-            size_t unread_;
-        };
-
     } // namespace online_image
 } // namespace esphome

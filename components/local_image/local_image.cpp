@@ -34,20 +34,23 @@ namespace esphome
         }
 
         LocalImage::LocalImage(sd_mmc_card::SdMmc *card, const std::string &path, int width, int height, ImageFormat format, ImageType type,
-                               image::Transparency transparency, uint32_t download_buffer_size)
+                               image::Transparency transparency)
             : Image(nullptr, 0, 0, type, transparency),
               buffer_(nullptr),
-              download_buffer_(download_buffer_size),
-              download_buffer_initial_size_(download_buffer_size),
               format_(format),
               fixed_width_(width),
-              fixed_height_(height)
+              fixed_height_(height),
+              source_size_(0),
+              source_buffer_(nullptr),
+              loded(false),
+              last_error_code_(OK)
         {
             this->set_path(path);
             this->set_sd_mmc_card(card);
-            this->source_size_ = 0;
-            this->source_buffer_ = {nullptr};
-            this->loded = false;
+            // this->source_size_ = 0;
+            // this->source_buffer_ = {nullptr};
+            // this->loded = false;
+            // this->last_error_code_ = OK;
         }
 
         void LocalImage::set_sd_mmc_card(sd_mmc_card::SdMmc *card) { 
@@ -116,7 +119,7 @@ namespace esphome
             {
                 ESP_LOGE(TAG, "allocation of %zu bytes failed. Biggest block in heap: %zu Bytes", new_size,
                          this->allocator_.get_max_free_block_size());
-                // this->end_connection_();
+                this->last_error_code_= NO_MEM;
                 return 0;
             }
             this->buffer_width_ = width;
@@ -139,6 +142,7 @@ namespace esphome
             size_t file_size = this->sd_mmc_card_->file_size(this->path_.c_str());
             if (file_size <= 0) {
                 ESP_LOGE(TAG, "File not found: *s",path_.c_str());
+                this->last_error_code_= FILE_NOT_NOTFOUND;
                 return;
             }
 
@@ -153,10 +157,10 @@ namespace esphome
             if (this->source_buffer_ == nullptr)
             {
                 ESP_LOGE(TAG, "No memory. (Size: %zu)", file_size);
+                this->last_error_code_= NO_MEM;
                 return;
             }
             this->source_size_ = file_size;
-
 
             /*    Read file */
             ESP_LOGD(TAG, "Start read file: %s. Size=%d",path_.c_str(), file_size);
@@ -176,31 +180,28 @@ namespace esphome
                 ESP_LOGD(TAG, "Reset decoder.");
                 this->decoder_ = nullptr;
             }
-       
             if (!this->decoder_)
             {
-                ESP_LOGD(TAG, "Load decoder.");
-
 #ifdef USE_ONLINE_IMAGE_BMP_SUPPORT
-                if (this->format_ == ImageFormat::BMP)
-                {
-                    ESP_LOGD(TAG, "Allocating BMP decoder");
-                    this->decoder_ = make_unique<BmpDecoder>(this);
-                }
+            if (this->format_ == ImageFormat::BMP)
+            {
+                ESP_LOGD(TAG, "Allocating BMP decoder");
+                this->decoder_ = make_unique<BmpDecoder>(this);
+            }
 #endif // ONLINE_IMAGE_BMP_SUPPORT
 #ifdef USE_ONLINE_IMAGE_JPEG_SUPPORT
-                if (this->format_ == ImageFormat::JPEG)
-                {
-                    ESP_LOGD(TAG, "Allocating JPEG decoder");
-                    this->decoder_ = esphome::make_unique<JpegDecoder>(this);
-                }
+            if (this->format_ == ImageFormat::JPEG)
+            {
+                ESP_LOGD(TAG, "Allocating JPEG decoder");
+                this->decoder_ = esphome::make_unique<JpegDecoder>(this);
+            }
 #endif // USE_ONLINE_IMAGE_JPEG_SUPPORT
 #ifdef USE_ONLINE_IMAGE_PNG_SUPPORT
-                if (this->format_ == ImageFormat::PNG)
-                {
-                    ESP_LOGD(TAG, "Allocating PNG decoder");
-                    this->decoder_ = make_unique<PngDecoder>(this);
-                }
+            if (this->format_ == ImageFormat::PNG)
+            {
+                ESP_LOGD(TAG, "Allocating PNG decoder");
+                this->decoder_ = make_unique<PngDecoder>(this);
+            }
 #endif // ONLINE_IMAGE_PNG_SUPPORT
             }
 
@@ -209,6 +210,7 @@ namespace esphome
                 ESP_LOGE(TAG, "Could not instantiate decoder. Image format unsupported: %d", this->format_);
                 // this->end_connection_();
                 // this->download_error_callback_.call();
+                this->last_error_code_= NOT_DECODER;
                 return;
             }
             auto prepare_result = this->decoder_->prepare(read_bytes);
@@ -223,6 +225,7 @@ namespace esphome
             {
                 ESP_LOGE(TAG, "Error when decoding image.");
                 this->decoder_.reset();
+                this->last_error_code_= ERR_DECODER; 
                 return;
             }
 
@@ -240,6 +243,7 @@ namespace esphome
             else {
                 ESP_LOGE(TAG, "Decoding is not complete.");
                 this->decoder_.reset();
+                this->last_error_code_= ERR_DECODER_UNKNOWN; 
             }
 
             this->loded = true;
@@ -255,6 +259,11 @@ namespace esphome
             if (this->loded) {
                 this->load_finished_callback_.call();
                 this->loded = false;
+            }
+
+            if (this->last_error_code_ != OK ) {
+                this->download_error_callback_.call();
+                this->last_error_code_ = OK;
             }
             return;
         }
@@ -364,24 +373,6 @@ namespace esphome
             }
         }
 
-        /*
-        void LocalImage::end_connection_()
-        {
-            // if (this->downloader_)
-            // {
-            //     this->downloader_->end();
-            //     this->downloader_ = nullptr;
-            // }
-
-            // if (this->source_size_ > 0 ) {
-            //     if (this->source_buffer_)
-            //         this->allocator_.deallocate(this->source_buffer_,this->source_size_);
-            //     this->source_size_ = 0;
-            // }
-            this->decoder_.reset();
-            this->download_buffer_.reset();
-        }
-        */
         bool LocalImage::validate_path_(const std::string &path)
         {
             // TODO: Add path validation

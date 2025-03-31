@@ -18,11 +18,21 @@ namespace esphome
     namespace local_image
     {
 
-        using t_http_codes = enum {
-            HTTP_CODE_OK = 200,
-            HTTP_CODE_NOT_MODIFIED = 304,
-            HTTP_CODE_NOT_FOUND = 404,
+        // using t_http_codes = enum {
+        //     HTTP_CODE_OK = 200,
+        //     HTTP_CODE_NOT_MODIFIED = 304,
+        //     HTTP_CODE_NOT_FOUND = 404,
+        // };
+
+        enum RetCodes : short {
+            OK = 0,
+            NO_MEM = 1,
+            FILE_NOT_NOTFOUND,
+            NOT_DECODER,
+            ERR_DECODER,
+            ERR_DECODER_UNKNOWN
         };
+
 
         /**
          * @brief Format that the image is encoded with.
@@ -44,9 +54,6 @@ namespace esphome
          * The image will then be stored in a buffer, so that it can be re-displayed without the
          * need to re-download or re-decode.
          */
-        // class Image : public PollingComponent,
-        //                     public image::Image,
-        //                     public Parented<esphome::http_request::HttpRequestComponent> {
 
         class LocalImage : public PollingComponent,
                            public image::Image
@@ -62,7 +69,7 @@ namespace esphome
              * @param buffer_size Size of the buffer used to download the image.
              */
             LocalImage(sd_mmc_card::SdMmc *card, const std::string &path, int width, int height, ImageFormat format, image::ImageType type,
-                       image::Transparency transparency, uint32_t buffer_size);
+                       image::Transparency transparency);
 
             void draw(int x, int y, display::Display *display, Color color_on, Color color_off) override;
 
@@ -100,7 +107,7 @@ namespace esphome
              *
              * @param size The new size for the download buffer.
              */
-            size_t resize_download_buffer(size_t size) { return this->download_buffer_.resize(size); }
+            // size_t resize_download_buffer(size_t size) { return this->download_buffer_.resize(size); }
 
             void add_on_finished_callback(std::function<void()> &&callback);
             void add_on_error_callback(std::function<void()> &&callback);
@@ -150,8 +157,6 @@ namespace esphome
             CallbackManager<void()> load_finished_callback_{};
             CallbackManager<void()> download_error_callback_{};
 
-            // std::shared_ptr<http_request::HttpContainer> downloader_{nullptr};
-
             sd_mmc_card::SdMmc *sd_mmc_card_{nullptr};
 
             std::unique_ptr<ImageDecoder> decoder_{nullptr};
@@ -160,13 +165,8 @@ namespace esphome
             size_t source_size_ = 0;
             uint8_t *buffer_;
             bool loded = false;
-            DownloadBuffer download_buffer_;
-            /**
-             * This is the *initial* size of the download buffer, not the current size.
-             * The download buffer can be resized at runtime; the download_buffer_initial_size_
-             * will *not* change even if the download buffer has been resized.
-             */
-            size_t download_buffer_initial_size_;
+
+            RetCodes last_error_code_;
 
             const ImageFormat format_;
             image::Image *placeholder_{nullptr};
@@ -195,8 +195,6 @@ namespace esphome
              * decoded images).
              */
             int buffer_height_;
-
-            // time_t start_time_;
 
             friend bool ImageDecoder::set_size(int width, int height);
             friend void ImageDecoder::draw(int x, int y, int w, int h, const Color &color);
@@ -245,8 +243,6 @@ namespace esphome
         protected:
             LocalImage *parent_;
         };
-
-
 
         class LoadFinishedTrigger : public Trigger<>
         {

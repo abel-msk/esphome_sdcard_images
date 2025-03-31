@@ -16,7 +16,6 @@ from esphome.components.image import (
 )
 import esphome.config_validation as cv
 from esphome.const import (
-    CONF_BUFFER_SIZE,
     CONF_DITHER,
     CONF_FILE,
     CONF_FORMAT,
@@ -133,7 +132,6 @@ LOCAL_IMAGE_SCHEMA = (
             cv.Required(CONF_PATH): cv.string,
             cv.Required(CONF_FORMAT): cv.one_of(*IMAGE_FORMATS, upper=True),
             cv.Optional(CONF_PLACEHOLDER): cv.use_id(Image_),
-            cv.Optional(CONF_BUFFER_SIZE, default=65536): cv.int_range(256, 65536),
             cv.Optional(CONF_ON_LOAD_FINISHED): automation.validate_automation(
                 {
                     cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(
@@ -223,7 +221,6 @@ async def to_code(config):
         image_format.enum,
         get_image_type_enum(config[CONF_TYPE]),
         transparent,
-        config[CONF_BUFFER_SIZE],
     )
     await cg.register_component(var, config)
     
