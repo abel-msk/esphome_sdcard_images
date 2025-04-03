@@ -200,6 +200,9 @@ namespace esphome
             friend void ImageDecoder::draw(int x, int y, int w, int h, const Color &color);
         };
 
+         /*   
+            Set new Path
+        */
         template <typename... Ts>
         class LocalImageSetPathAction : public Action<Ts...>
         {
@@ -209,25 +212,15 @@ namespace esphome
             void play(Ts... x) override
             {
                 this->parent_->set_path(this->path_.value(x...));
-                this->parent_->update();
             }
 
         protected:
             LocalImage *parent_;
         };
 
-        template <typename... Ts>
-        class LocalImageReleaseAction : public Action<Ts...>
-        {
-        public:
-            LocalImageReleaseAction(LocalImage *parent) : parent_(parent) {}
-            void play(Ts... x) override { this->parent_->release(); }
-
-        protected:
-            LocalImage *parent_;
-        };
-
-
+        /*   
+        Set new Path and call reload
+        */
         template <typename... Ts>
         class LocalImageReloadAction : public Action<Ts...>
         {
@@ -243,6 +236,32 @@ namespace esphome
         protected:
             LocalImage *parent_;
         };
+
+        /*   
+         Free all buffers
+        */
+        template <typename... Ts>
+        class LocalImageReleaseAction : public Action<Ts...>
+        {
+        public:
+            LocalImageReleaseAction(LocalImage *parent) : parent_(parent) {}
+            void play(Ts... x) override { this->parent_->release(); }
+
+        protected:
+            LocalImage *parent_;
+        };
+
+        template <typename... Ts>
+        class LocalImageLoadAction : public Action<Ts...>
+        {
+        public:
+        LocalImageLoadAction(LocalImage *parent) : parent_(parent) {}
+            void play(Ts... x) override  { this->parent_->update(); }
+        protected:
+            LocalImage *parent_;
+        };
+
+
 
         class LoadFinishedTrigger : public Trigger<>
         {

@@ -103,6 +103,10 @@ LocalImageReloadAction = local_image_ns.class_(
     "LocalImageReloadAction", automation.Action, cg.Parented.template(LocalImage)
 )
 
+LocalImageLoadAction = local_image_ns.class_(
+    "LocalImageLoadAction", automation.Action, cg.Parented.template(LocalImage)
+)
+
 # Triggers
 LoadFinishedTrigger = local_image_ns.class_(
     "LoadFinishedTrigger", automation.Trigger.template()
@@ -175,11 +179,16 @@ RELEASE_IMAGE_SCHEMA = automation.maybe_simple_id(
         cv.GenerateID(): cv.use_id(LocalImage),
     }
 )
+LOAD_IMAGE_SCHEMA = automation.maybe_simple_id(
+    {
+        cv.GenerateID(): cv.use_id(LocalImage),
+    }
+)
 
+@automation.register_action("local_image.load", SetPathAction, LOAD_IMAGE_SCHEMA)
+@automation.register_action("local_image.release", ReleaseImageAction, RELEASE_IMAGE_SCHEMA)
 
 @automation.register_action("local_image.set_path", SetPathAction, SET_PATH_SCHEMA)
-
-@automation.register_action("local_image.release", ReleaseImageAction, RELEASE_IMAGE_SCHEMA)
 async def local_image_action_to_code(config, action_id, template_arg, args):
     paren = await cg.get_variable(config[CONF_ID])
     var = cg.new_Pvariable(action_id, template_arg, paren)
