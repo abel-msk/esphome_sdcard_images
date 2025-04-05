@@ -28,9 +28,10 @@ namespace esphome
             OK = 0,
             NO_MEM = 1,
             FILE_NOT_NOTFOUND,
-            NOT_DECODER,
-            ERR_DECODER,
-            ERR_DECODER_UNKNOWN
+            DECODER_UNKNOWN,
+            DECODER_NOT_INIT,
+            DECODER_NOT_PREPARE,
+            DECODER_PROC_ERR
         };
 
 
@@ -102,6 +103,11 @@ namespace esphome
              */
             void release();
 
+            /**
+             * @brief  When loading finished release  buffers for used for prepare image 
+             * 
+             */
+            void end_loading_();
             /**
              * Resize the download buffer
              *

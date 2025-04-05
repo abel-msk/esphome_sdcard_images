@@ -33,6 +33,7 @@ CODEOWNERS = ["@abel"]
 MULTI_CONF = True
 
 CONF_ON_LOAD_FINISHED = "on_load_finished"
+CONF_ON_ERROR = "on_error"
 CONF_PLACEHOLDER = "placeholder"
 
 _LOGGER = logging.getLogger(__name__)
@@ -249,3 +250,7 @@ async def to_code(config):
     for conf in config.get(CONF_ON_ERROR, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
         await automation.build_automation(trigger, [], conf)
+        
+    # for conf in config.get(CONF_ON_VALUE, []):
+    #     trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
+    #     await automation.build_automation(trigger, [(float, "x")], conf)

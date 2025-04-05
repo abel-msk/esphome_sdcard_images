@@ -47,7 +47,8 @@ namespace esphome
         {
             this->set_path(path);
             this->set_sd_mmc_card(card);
-            // this->source_size_ = 0;
+            this->decoder_ = nullptr;
+            this->source_size_ = 0;
             // this->source_buffer_ = {nullptr};
             // this->loded = false;
             // this->last_error_code_ = OK;
@@ -136,21 +137,25 @@ namespace esphome
          */
         void LocalImage::update()
         {
-            
+            size_t file_size = 0;
+            this->last_error_code_ = OK;
+
             ESP_LOGD(TAG, "Loading image from file : %s", this->path_.c_str());
 
-            size_t file_size = this->sd_mmc_card_->file_size(this->path_.c_str());
+            file_size = this->sd_mmc_card_->file_size(this->path_.c_str());
             if (file_size <= 0) {
                 ESP_LOGE(TAG, "File not found: *s",path_.c_str());
                 this->last_error_code_= FILE_NOT_NOTFOUND;
                 return;
             }
 
-            /*   Free mem form old source  */
-            if (this->source_size_ > 0) {
-                this->allocator_.deallocate(this->source_buffer_,this->source_size_);
-                this->source_size_ = 0;
-            }
+            // /*   Free mem form old source  */
+            // if (this->source_size_ > 0) {
+            //     this->allocator_.deallocate(this->source_buffer_,this->source_size_);
+            //     this->source_size_ = 0;
+            //     this->source_buffer_ = {nullptr};
+            // }
+
 
             /*    Get Memory for read file */
             this->source_buffer_ =  this->allocator_.allocate(file_size);
@@ -166,22 +171,21 @@ namespace esphome
             ESP_LOGD(TAG, "Start read file: %s. Size=%d",path_.c_str(), file_size);
                 
             size_t read_bytes = this->sd_mmc_card_->read_file(path_.c_str(),
-                                                        this->source_buffer_,file_size);
+                                                        this->source_buffer_,this->source_size_);
             ESP_LOGD(TAG, "Read %d bytes", read_bytes);
-            if  (read_bytes <  file_size) {
-                ESP_LOGW(TAG, "Expct %d, read %d.", file_size, read_bytes);
+            if  (read_bytes <  this->source_size_) {
+                ESP_LOGW(TAG, "Expct %d, read %d.", this->source_size_, read_bytes);
             }
 
             /*   Clear old decoder */
-            if (this->decoder_)
-            {
-                this->decoder_.reset();
-                // delete *this->decoder_;
-                ESP_LOGD(TAG, "Reset decoder.");
-                this->decoder_ = nullptr;
-            }
-            if (!this->decoder_)
-            {
+            // if (this->decoder_)
+            // {
+            //     // this->decoder_.reset();
+            //     delete &(this->decoder_);
+            //     ESP_LOGD(TAG, "Reset decoder.");
+            //     this->decoder_ = nullptr;
+            // }
+  
 #ifdef USE_ONLINE_IMAGE_BMP_SUPPORT
             if (this->format_ == ImageFormat::BMP)
             {
@@ -203,20 +207,21 @@ namespace esphome
                 this->decoder_ = make_unique<PngDecoder>(this);
             }
 #endif // ONLINE_IMAGE_PNG_SUPPORT
-            }
+
 
             if (!this->decoder_)
             {
                 ESP_LOGE(TAG, "Could not instantiate decoder. Image format unsupported: %d", this->format_);
-                // this->end_connection_();
+                this->end_loading_();
                 // this->download_error_callback_.call();
-                this->last_error_code_= NOT_DECODER;
+                this->last_error_code_= DECODER_NOT_INIT;
                 return;
             }
             auto prepare_result = this->decoder_->prepare(read_bytes);
             if (prepare_result < 0)
             {
-                this->decoder_.reset();
+                this->last_error_code_= DECODER_NOT_PREPARE;
+                this->end_loading_();
                 return;
             }
 
@@ -224,29 +229,27 @@ namespace esphome
             if (fed < 0)
             {
                 ESP_LOGE(TAG, "Error when decoding image.");
-                this->decoder_.reset();
-                this->last_error_code_= ERR_DECODER; 
+                this->last_error_code_= DECODER_PROC_ERR; 
+                this->end_loading_();
                 return;
             }
 
             if (this->decoder_->is_finished())
             {
                 ESP_LOGD(TAG, "Decoder is finished");
-
                 // this->width_, this->height_);
                 this->data_start_ = buffer_;
                 this->width_ = buffer_width_;
                 this->height_ = buffer_height_;
-
                 ESP_LOGD(TAG, "Image fully loaded, read %zu bytes, width/height = %d/%d", fed, this->width_,this->height_);        
-                }
+                this->loded = true;    
+            }
             else {
                 ESP_LOGE(TAG, "Decoding is not complete.");
-                this->decoder_.reset();
-                this->last_error_code_= ERR_DECODER_UNKNOWN; 
+                this->last_error_code_= DECODER_UNKNOWN; 
+                this->end_loading_();
             }
 
-            this->loded = true;
         }
         /**********************************************************************************************
          * 
@@ -259,11 +262,13 @@ namespace esphome
             if (this->loded) {
                 this->load_finished_callback_.call();
                 this->loded = false;
+                this->end_loading_();
             }
 
             if (this->last_error_code_ != OK ) {
                 this->download_error_callback_.call();
                 this->last_error_code_ = OK;
+                this->end_loading_();
             }
             return;
         }
@@ -373,6 +378,20 @@ namespace esphome
             }
         }
 
+        void LocalImage::end_loading_() {
+            if (source_buffer_ != nullptr ) {
+                this->allocator_.deallocate(this->source_buffer_,this->source_size_);
+                this->source_buffer_== nullptr;
+            }
+            this->source_size_ = 0;
+
+            if (this->decoder_ != nullptr) {
+                this->decoder_.reset();
+                this->decoder_ = nullptr;
+            }
+          }
+
+
         bool LocalImage::validate_path_(const std::string &path)
         {
             // TODO: Add path validation
@@ -391,6 +410,7 @@ namespace esphome
 
         void LocalImage::add_on_error_callback(std::function<void()> &&callback)
         {
+            // this->download_error_callback_.add(std::move(callback));
             this->download_error_callback_.add(std::move(callback));
         }
 
