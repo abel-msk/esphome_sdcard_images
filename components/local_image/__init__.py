@@ -186,7 +186,7 @@ LOAD_IMAGE_SCHEMA = automation.maybe_simple_id(
     }
 )
 
-@automation.register_action("local_image.load", SetPathAction, LOAD_IMAGE_SCHEMA)
+@automation.register_action("local_image.load", LocalImageLoadAction, LOAD_IMAGE_SCHEMA)
 @automation.register_action("local_image.release", ReleaseImageAction, RELEASE_IMAGE_SCHEMA)
 
 @automation.register_action("local_image.set_path", SetPathAction, SET_PATH_SCHEMA)
@@ -249,7 +249,8 @@ async def to_code(config):
 
     for conf in config.get(CONF_ON_ERROR, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
-        await automation.build_automation(trigger, [], conf)
+        await automation.build_automation(trigger, [(cg.uint8, "x")], conf)
+        
         
     # for conf in config.get(CONF_ON_VALUE, []):
     #     trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)

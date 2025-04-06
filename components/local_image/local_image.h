@@ -24,7 +24,9 @@ namespace esphome
         //     HTTP_CODE_NOT_FOUND = 404,
         // };
 
-        enum RetCodes : short {
+        // enum class Foo : int
+
+        enum class ErrorCode : uint8_t {
             OK = 0,
             NO_MEM = 1,
             FILE_NOT_NOTFOUND,
@@ -108,15 +110,9 @@ namespace esphome
              * 
              */
             void end_loading_();
-            /**
-             * Resize the download buffer
-             *
-             * @param size The new size for the download buffer.
-             */
-            // size_t resize_download_buffer(size_t size) { return this->download_buffer_.resize(size); }
-
+            
             void add_on_finished_callback(std::function<void()> &&callback);
-            void add_on_error_callback(std::function<void()> &&callback);
+            void add_on_error_callback(std::function<void(uint8_t)> &&callback);
 
         protected:
             bool validate_path_(const std::string &path);
@@ -161,7 +157,8 @@ namespace esphome
             // void end_connection_();
 
             CallbackManager<void()> load_finished_callback_{};
-            CallbackManager<void()> download_error_callback_{};
+            CallbackManager<void(uint8_t)> on_err_callback_{};
+
 
             sd_mmc_card::SdMmc *sd_mmc_card_{nullptr};
 
@@ -172,7 +169,7 @@ namespace esphome
             uint8_t *buffer_;
             bool loded = false;
 
-            RetCodes last_error_code_;
+            ErrorCode last_error_code_;
 
             const ImageFormat format_;
             image::Image *placeholder_{nullptr};
@@ -206,88 +203,6 @@ namespace esphome
             friend void ImageDecoder::draw(int x, int y, int w, int h, const Color &color);
         };
 
-         /*   
-            Set new Path
-        */
-        template <typename... Ts>
-        class LocalImageSetPathAction : public Action<Ts...>
-        {
-        public:
-            LocalImageSetPathAction(LocalImage *parent) : parent_(parent) {}
-            TEMPLATABLE_VALUE(std::string, path)
-            void play(Ts... x) override
-            {
-                this->parent_->set_path(this->path_.value(x...));
-            }
-
-        protected:
-            LocalImage *parent_;
-        };
-
-        /*   
-        Set new Path and call reload
-        */
-        template <typename... Ts>
-        class LocalImageReloadAction : public Action<Ts...>
-        {
-        public:
-            LocalImageReloadAction(LocalImage *parent) : parent_(parent) {}
-            TEMPLATABLE_VALUE(std::string, path)
-            void play(Ts... x) override
-            {
-                this->parent_->set_path(this->path_.value(x...));
-                this->parent_->update();
-            }
-
-        protected:
-            LocalImage *parent_;
-        };
-
-        /*   
-         Free all buffers
-        */
-        template <typename... Ts>
-        class LocalImageReleaseAction : public Action<Ts...>
-        {
-        public:
-            LocalImageReleaseAction(LocalImage *parent) : parent_(parent) {}
-            void play(Ts... x) override { this->parent_->release(); }
-
-        protected:
-            LocalImage *parent_;
-        };
-
-        template <typename... Ts>
-        class LocalImageLoadAction : public Action<Ts...>
-        {
-        public:
-        LocalImageLoadAction(LocalImage *parent) : parent_(parent) {}
-            void play(Ts... x) override  { this->parent_->update(); }
-        protected:
-            LocalImage *parent_;
-        };
-
-
-
-        class LoadFinishedTrigger : public Trigger<>
-        {
-        public:
-            explicit LoadFinishedTrigger(LocalImage *parent)
-            {
-                parent->add_on_finished_callback([this]()
-                                                 { this->trigger(); });
-            }
-        };
-        
-        class LoadErrorTrigger : public Trigger<>
-        {
-        public:
-            explicit LoadErrorTrigger(LocalImage *parent)
-            {
-                parent->add_on_error_callback([this]()
-                                              { this->trigger(); });
-            }
-        };
 
     } // namespace online_image
 } // namespace esphome
