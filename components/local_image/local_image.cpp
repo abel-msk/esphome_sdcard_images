@@ -74,10 +74,10 @@ namespace esphome
 
 
         void LocalImage::end_loading_() {
-            if (source_buffer_ != nullptr ) {
-                this->allocator_.deallocate(this->source_buffer_,this->source_size_);
-                this->source_buffer_== nullptr;
-            }
+            // if (source_buffer_ != nullptr ) {
+            //     this->allocator_.deallocate(this->source_buffer_,this->source_size_);
+            //     this->source_buffer_== nullptr;
+            // }
             this->source_size_ = 0;
 
             if (this->decoder_ != nullptr) {
@@ -166,42 +166,15 @@ namespace esphome
                 return;
             }
 
-            // /*   Free mem form old source  */
-            // if (this->source_size_ > 0) {
-            //     this->allocator_.deallocate(this->source_buffer_,this->source_size_);
-            //     this->source_size_ = 0;
-            //     this->source_buffer_ = {nullptr};
-            // }
-
-
-            /*    Get Memory for read file */
-            this->source_buffer_ =  this->allocator_.allocate(file_size);
-            if (this->source_buffer_ == nullptr)
-            {
-                ESP_LOGE(TAG, "No memory. (Size: %zu)", file_size);
-                this->last_error_code_= ErrorCode::NO_MEM;
-                return;
-            }
-            this->source_size_ = file_size;
-
             /*    Read file */
-            ESP_LOGD(TAG, "Start read file: %s. Size=%d",path_.c_str(), file_size);
-                
-            size_t read_bytes = this->sd_mmc_card_->read_file(path_.c_str(),
-                                                        this->source_buffer_,this->source_size_);
-            ESP_LOGD(TAG, "Read %d bytes", read_bytes);
-            if  (read_bytes <  this->source_size_) {
-                ESP_LOGW(TAG, "Expct %d, read %d.", this->source_size_, read_bytes);
-            }
+            ESP_LOGV(TAG, "Start read file: %s. Size=%d",path_.c_str(), file_size);
 
-            /*   Clear old decoder */
-            // if (this->decoder_)
-            // {
-            //     // this->decoder_.reset();
-            //     delete &(this->decoder_);
-            //     ESP_LOGD(TAG, "Reset decoder.");
-            //     this->decoder_ = nullptr;
-            // }
+            std::vector<uint8_t> memFile = this->sd_mmc_card_->read_file(path_.c_str());  
+
+            ESP_LOGD(TAG, "Read %d bytes", memFile.size());
+            if  (memFile.size() <  file_size) {
+                ESP_LOGW(TAG, "Expct %d, read %d.", file_size, memFile.size());
+            }
   
 #ifdef USE_ONLINE_IMAGE_BMP_SUPPORT
             if (this->format_ == ImageFormat::BMP)
@@ -225,28 +198,30 @@ namespace esphome
             }
 #endif // ONLINE_IMAGE_PNG_SUPPORT
 
-
             if (!this->decoder_)
             {
                 ESP_LOGE(TAG, "Could not instantiate decoder. Image format unsupported: %d", this->format_);
+                memFile.clear();
                 this->last_error_code_= ErrorCode::DECODER_NOT_INIT;
                 this->end_loading_();
                 return;
             }
-            auto prepare_result = this->decoder_->prepare(read_bytes);
+            auto prepare_result = this->decoder_->prepare(memFile.size());
             if (prepare_result < 0)
             {
                 ESP_LOGE(TAG, "Error when prepare decoder.");
                 this->last_error_code_= ErrorCode::DECODER_NOT_PREPARE;
+                memFile.clear();
                 this->end_loading_();
                 return;
             }
 
-            auto fed = this->decoder_->decode(this->source_buffer_, this->source_size_);
+            auto fed = this->decoder_->decode(memFile.data(), memFile.size());
             if (fed < 0)
             {
                 ESP_LOGE(TAG, "Error when decoding image.");
                 this->last_error_code_= ErrorCode::DECODER_PROC_ERR; 
+                memFile.clear();
                 this->end_loading_();
                 return;
             }
@@ -266,6 +241,7 @@ namespace esphome
                 this->last_error_code_= ErrorCode::DECODER_UNKNOWN; 
                 this->end_loading_();
             }
+            memFile.clear();
 
         }
         /**********************************************************************************************
