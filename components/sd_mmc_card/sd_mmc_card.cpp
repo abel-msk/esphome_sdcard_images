@@ -23,7 +23,7 @@ namespace esphome
 
 #ifdef USE_ESP32_FRAMEWORK_ARDUINO
             ESP_LOGCONFIG(TAG, "SD MMC Component. Use Arduino framework.");
-#endif            
+#endif
 
 #ifdef USE_ESP_IDF
             ESP_LOGCONFIG(TAG, "SD MMC Component. Use ESP_IDF framework.");
@@ -63,6 +63,21 @@ namespace esphome
             {
                 ESP_LOGE(TAG, "Setup failed : %s", SdMmc::error_code_to_string(this->init_error_).c_str());
                 return;
+            }
+        }
+
+        FileDescriptor *SdMmc::open_file(const char *path, const char *mode)
+        {
+            ESP_LOGV(TAG, "Open file: %s, mode %s", path, mode);
+            return this->open_platform_file(path, mode);
+        }
+
+        void SdMmc::close_file(FileDescriptor fd)
+        {
+            if (fd != NULL)
+            {
+                this->close_platform_file(path, mode);
+                ESP_LOGV(TAG, "Close file.");
             }
         }
 
@@ -110,8 +125,10 @@ namespace esphome
 
         bool SdMmc::delete_file(std::string const &path) { return this->delete_file(path.c_str()); }
 
-        size_t SdMmc::read_file(std::string const &path, uint8_t *buf, int promise_len) 
-                                                         { return this->read_file(path.c_str(), buf, promise_len); }
+        size_t SdMmc::read_file(std::string const &path, uint8_t *buf, int promise_len)
+        {
+            return this->read_file(path.c_str(), buf, promise_len);
+        }
         std::vector<uint8_t> SdMmc::read_file(std::string const &path) { return this->read_file(path.c_str()); }
 
 #ifdef USE_SENSOR

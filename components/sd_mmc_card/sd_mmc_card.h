@@ -40,6 +40,16 @@ namespace esphome
         };
 #endif
 
+        struct FileDescriptor 
+        {
+#ifdef USE_ESP_IDF
+            FILE *file;
+#endif
+#ifdef USE_ESP32_FRAMEWORK_ARDUINO
+            File file;
+#endif
+        }; 
+
         struct FileInfo
         {
             std::string path;
@@ -69,6 +79,13 @@ namespace esphome
             void setup() override;
             void loop() override;
             void dump_config() override;
+
+            FileDescriptor* open_file(const char *path, const char *mode);
+            FileDescriptor* open_platform_file(const char *path, const char *mode);
+            
+            void close_file(FileDescriptor* fd);
+            void close_platform_file(FileDescriptor* fd);
+
             void write_file(const char *path, const uint8_t *buffer, size_t len, const char *mode);
             void write_file(const char *path, const uint8_t *buffer, size_t len);
             void append_file(const char *path, const uint8_t *buffer, size_t len);
@@ -112,6 +129,7 @@ namespace esphome
             uint8_t data3_pin_;
             bool mode_1bit_;
             GPIOPin *power_ctrl_pin_{nullptr};
+            std::shared_ptr<http_request::HttpContainer> downloader_{nullptr};
 
 #ifdef USE_ESP_IDF
             sdmmc_card_t *card_;

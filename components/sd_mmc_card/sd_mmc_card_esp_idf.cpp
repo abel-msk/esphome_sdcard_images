@@ -100,6 +100,28 @@ namespace esphome
             update_sensors();
         }
 
+        FileDescriptor *open_platform_file(const char *path, const char *mode) {
+            std::string absolut_path = build_path(path);
+            FileDescriptor *fd = malloc(sizeof(FileDescriptor));
+            fd->file = NULL;
+            fd->file = fopen(absolut_path.c_str(), mode);
+            if (file == NULL)
+            {
+                ESP_LOGE(TAG, "Failed to open file for %s", path);
+                free(fd);
+                return NULL;
+            }
+            return fd;
+        }
+
+        void close_platform_file(FileDescriptor* fd) {
+            if (fd != NULL) {
+                fclose(fd->file);
+                free(fd);
+            }
+            this->update_sensors();
+        }
+
         void SdMmc::write_file(const char *path, const uint8_t *buffer, size_t len, const char *mode)
         {
             std::string absolut_path = build_path(path);
