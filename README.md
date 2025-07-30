@@ -1,6 +1,6 @@
 # About
 This repository contains ESPhome component for loading and display image file from scmmc card.
-For interaction with sd card used [this component](https://github.com/n-serrette/esphome_sd_card').
+For interaction with sd card used [this component](https://github.com/abel-msk/esphome_sd_card).
 Copy of sd card component also included un this repository for debug purposes.
 
 # Install
