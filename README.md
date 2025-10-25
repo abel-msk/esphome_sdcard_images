@@ -4,7 +4,7 @@ For interaction with sd card used [this component](https://github.com/abel-msk/e
 Copy of sd card component also included un this repository for debug purposes.
 
 # Install
-Just add in yout esphoe config file next lines:
+Just add in yours esphome config file next lines:
 
 ```
 external_components:
