@@ -1,7 +1,6 @@
 # About
 This repository contains ESPhome component for loading and display image file from locally accessed storage device.
-For interaction with sd card used [this component](https://github.com/abel-msk/esphome_sd_card).
-Copy of sd card component also included un this repository for debug purposes.
+The device driver should imlement storage component. (Under developing).
 
 # Install
 Just add in yours esphome config file next lines:
@@ -10,7 +9,7 @@ Just add in yours esphome config file next lines:
 external_components:
   - source:
         type: git
-        url: https://github.com/abel-msk/esphome_sdcard_images
+        url: https://github.com/abel-msk/local_image
     components: [local_image]
 ```
 
