@@ -6,7 +6,7 @@ Copy of sd card component also included un this repository for debug purposes.
 # Install
 Just add in yours esphome config file next lines:
 
-```
+```yaml
 external_components:
   - source:
         type: git
@@ -16,7 +16,7 @@ external_components:
 
 ## Base local_image Configuration
 local_image component load image from local accessed storage, convert to bitmap and save in memory.
-Component use [`image::Image`](https://esphome.io/components/image/) interface, so it can be accessed from other components witch diaplay images. For example [lgvl](https://esphome.io/components/lvgl/)
+Component use [`image::Image`](https://esphome.io/components/image/) interface, so it can be accessed from other components witch diaplay images. For example [lvgl](https://esphome.io/components/lvgl/) component
 
 
 
@@ -38,7 +38,7 @@ local_image:
 - **storage_id** (**Required**) The ID of dtorage component. For storage access component require storage drivers with [storage::FileProvider] (https://github.com/esphome/esphome/pull/11390) interface.
 - **path** (**Required**) The path to file on loacaly accessed storage device.
 - 
-Other options are the same as in [online_image](https://esphome.io/components/online_image/#online_image) component except URL and update_interval
+Other options are the same as in the [online_image](https://esphome.io/components/online_image/#online_image) component except URL.
 
 **Access storage interface**
 
@@ -96,7 +96,7 @@ lvgl:
 ```
 
 
-The action local_image.reload will read  image '/gd/imahe1.png' and load into memory.
+The action local_image.reload will read  image '/bgwf/day_rain.png' and load into memory.
 When load finished this will call `on_load_finished` callbask for drawing (see loacal_image initialising).
 
 ---
