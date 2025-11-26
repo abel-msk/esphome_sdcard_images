@@ -35,10 +35,10 @@ local_image:
 **Configuration variables:**
 
 - **id** (**Required**, [ID](https://esphome.io/guides/configuration-types/#id))): The ID with which you will be able to reference the image later in your display code.
-- **storage_id** (**Required**, The ID of dtorage component. For storage access component require storage drivers with [storage::FileProvider] (https://github.com/esphome/esphome/pull/11390) interface.
-
+- **storage_id** (**Required**) The ID of dtorage component. For storage access component require storage drivers with [storage::FileProvider] (https://github.com/esphome/esphome/pull/11390) interface.
+- **path** (**Required**) The path to file on loacaly accessed storage device.
+- 
 Other options are the same as in [online_image](https://esphome.io/components/online_image/#online_image) component except URL and update_interval
-
 
 **Access storage interface**
 
@@ -48,12 +48,15 @@ external_components:
   - source: github://pr#11390
     components: [storage]
     refresh: 1h
-
 ```
+
+More detailed example
+
+```yaml
 local_image:
   - id: varImage
     path:  "/bgwf/day_rain.png"
-    sd_mmc_card_id: sdcard1      #  Line to sd_mmc_carsd component configuration with id sdcard1
+    storage_id: sdcard1         #  id of storage component configuration with id sdcard1
     format: png
     resize: 480x320
     type: RGB565     
@@ -68,19 +71,34 @@ local_image:
           args: [x]
 ```
 
-For start load image with pointes url use automation like this:
+For start load image or reload image from path:
 
-```
+```yaml
 then:
-      - local_image.reload: 
+      - local_image.reload:    #  Action for re-read image from storage (in case image was changed )
           id: varImage
           path:  !lambda |-
               ...
-              return "/gd/imahe1.png"
+              return "/bgwf/day_rain.png"
+
+
+lvgl:
+   . . .
+  pages:
+    - id: main_page
+      widgets: 
+        - image:    
+            id: bgImage  
+            align: CENTER
+            src: varImage
+            y: 0
+            x: 0
 ```
 
-This action will read  image '/gd/imahe1.png' from sd card  and load into memory.
-When load finished this will call `on_load_finished` callbask for drawing (see loacal_image initializing).
+
+The action local_image.reload will read  image '/gd/imahe1.png' and load into memory.
+When load finished this will call `on_load_finished` callbask for drawing (see loacal_image initialising).
+
 ---
 
 Because storage interface not in release yet, i planing for make localy available component sdfs for accessing sdcards. Late something like this will migate to esphome project.
