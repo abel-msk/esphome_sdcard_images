@@ -1,9 +1,10 @@
 # About
 This repository contains ESPhome component for loading and display image file from locally accessed storage device.
-The device driver should imlement storage component. (Under developing).
+The device driver should imlement storage component. 
+For accessing sdcard is possible to use sdmmc component&
 
 # Install
-All code was moved under my own esphome fork ans can be accessed via external component.
+All code was moved under my own esphome fork and can be accessed via external component.
 Just add in yours esphome config file next lines:
 
 ```yaml
@@ -15,8 +16,11 @@ external_components:
     components: [ storage, sdmmc, local_image ]
 ```
 
+# Sdmmc
+
 ## Base sdmmc Configuration
-SDMMC component used for access file system on sdcard.
+
+Sdmmc component is my simple implementation of storage component. Used for access file system on sdcard.
 Component get access to file and directoryes manipulations and fire read and wtite operations.
 It can be used independently of local_image for you own projects.
 sdmmc uses FATLib for filesystems and MMC card inetrface implemented on ESP32 series soc.
@@ -43,7 +47,23 @@ sdmmc:
 - **data3_pin** (**Optional** [Pin](https://esphome.io/guides/configuration-types/#pin)): Bud bit 3  used if mode_1bit set to `False`
 
 
+Of cource You can create you own imoplementation os storage access  for local_image component.
+All you need in this way is to inherit yours class from FileProvider calss inside storage.
 
+Storage and FileProvider interface for study is available [here](https://github.com/abel-msk/esphome/blob/storage/esphome/components/storage/file_provider.h)
+
+For use storage  uou configuration use 
+
+```yaml
+
+external_components:
+  - source: github://pr#11390
+    components: [storage]
+    refresh: 1h
+
+```
+
+# Local_image
 
 ## Base local_image Configuration
 local_image component load image from local accessed storage, convert to bitmap and save in memory.
@@ -128,6 +148,4 @@ lvgl:
 The action local_image.reload will read  image '/bgwf/day_rain.png' and load into memory.
 When load finished this will call `on_load_finished` callbask for drawing (see loacal_image initialising).
 
----
 
-Because storage interface not in release yet, i planing for make localy available component sdfs for accessing sdcards. Late something like this will migate to esphome project.
