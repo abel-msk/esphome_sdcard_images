@@ -43,11 +43,11 @@ static int draw_callback(JPEGDRAW *jpeg) {
 
 int JpegDecoder::prepare(size_t download_size) {
   ImageDecoder::prepare(download_size);
-  auto size = this->image_->resize_download_buffer(download_size);
-  if (size < download_size) {
-    ESP_LOGE(TAG, "Download buffer resize failed!");
-    return DECODE_ERROR_OUT_OF_MEMORY;
-  }
+  // auto size = this->image_->resize_download_buffer(download_size);
+  // if (size < download_size) {
+  //   ESP_LOGE(TAG, "Download buffer resize failed!");
+  //   return DECODE_ERROR_OUT_OF_MEMORY;
+  // }
   return 0;
 }
 
@@ -86,7 +86,7 @@ int HOT JpegDecoder::decode(uint8_t *buffer, size_t size) {
   return size;
 }
 
-}  // namespace online_image
+}  // namespace local_image
 }  // namespace esphome
 
 #endif  // USE_ONLINE_IMAGE_JPEG_SUPPORT

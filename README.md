@@ -3,28 +3,58 @@ This repository contains ESPhome component for loading and display image file fr
 The device driver should imlement storage component. (Under developing).
 
 # Install
+All code was moved under my own esphome fork ans can be accessed via external component.
 Just add in yours esphome config file next lines:
 
 ```yaml
 external_components:
   - source:
-        type: git
-        url: https://github.com/abel-msk/local_image
-    components: [local_image]
+      type: git
+      url: https://github.com/abel-msk/esphome
+      ref: local_image
+    components: [ storage, sdmmc, local_image ]
 ```
+
+## Base sdmmc Configuration
+SDMMC component used for access file system on sdcard.
+Component get access to file and directoryes manipulations and fire read and wtite operations.
+It can be used independently of local_image for you own projects.
+sdmmc uses FATLib for filesystems and MMC card inetrface implemented on ESP32 series soc.
+
+```yaml
+sdmmc:
+  id: storage_1
+  cmd_pin: GPIO12
+  clk_pin: GPIO13
+  mode_1bit: true
+  data0_pin: GPIO16
+
+```
+
+**Configuration variables:**
+
+- **id** (**Required**, [ID](https://esphome.io/guides/configuration-types/#id))): The ID with which you will be able to storage acces later in your code.
+- **cmd_pin** (**Required** [Pin](https://esphome.io/guides/configuration-types/#pin)): Controll pin  
+- **clk_pin** (**Required** [Pin](https://esphome.io/guides/configuration-types/#pin)): Clock rate pin. Requiter PWM ready pin.
+- **mode_1bit** (**Required**) Set data bus width. Can bee 1bit witdth (True) or 4Bit width (False).
+- **data0_pin** (**Required** [Pin](https://esphome.io/guides/configuration-types/#pin)): Bud bit 0  
+- **data1_pin** (**Optional** [Pin](https://esphome.io/guides/configuration-types/#pin)): Bud bit 1  used if mode_1bit set to `False`
+- **data2_pin** (**Optional** [Pin](https://esphome.io/guides/configuration-types/#pin)): Bud bit 2  used if mode_1bit set to `False`
+- **data3_pin** (**Optional** [Pin](https://esphome.io/guides/configuration-types/#pin)): Bud bit 3  used if mode_1bit set to `False`
+
+
+
 
 ## Base local_image Configuration
 local_image component load image from local accessed storage, convert to bitmap and save in memory.
 Component use [`image::Image`](https://esphome.io/components/image/) interface, so it can be accessed from other components witch diaplay images. For example [lvgl](https://esphome.io/components/lvgl/) component
-
-
 
 ```yaml
 
 local_image:
   - id: varImage
     path:  "/bgwf/day_rain.png"
-    storage_id: sdcard1      #  Line to sd_mmc_carsd component configuration with id sdcard1
+    storage_id: storage_1      #  Line to sd_mmc_carsd component configuration with id sdcard1
     format: png
     resize: 480x320
     type: RGB565     

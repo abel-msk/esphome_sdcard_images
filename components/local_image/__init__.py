@@ -1,9 +1,5 @@
-import logging
-
 from esphome import automation
 import esphome.codegen as cg
-
-from .. import sd_mmc_card
 
 # from esphome.components.http_request import CONF_HTTP_REQUEST_ID, HttpRequestComponent
 from esphome.components.image import (
@@ -14,6 +10,7 @@ from esphome.components.image import (
     get_image_type_enum,
     get_transparency_enum,
 )
+from esphome.components.storage import FileProvider
 import esphome.config_validation as cv
 from esphome.const import (
     CONF_DITHER,
@@ -21,26 +18,34 @@ from esphome.const import (
     CONF_FORMAT,
     CONF_ID,
     CONF_ON_ERROR,
+    CONF_PATH,
     CONF_RESIZE,
     CONF_TRIGGER_ID,
     CONF_TYPE,
-    CONF_PATH,
 )
 
-AUTO_LOAD = ["image"]
-DEPENDENCIES = ["display","sd_mmc_card"]
-CODEOWNERS = ["@abel"]
+AUTO_LOAD = ["image", "storage"]
+DEPENDENCIES = ["display"]
+CODEOWNERS = ["@abel-msk"]
 MULTI_CONF = True
 
-CONF_ON_LOAD_FINISHED = "on_load_finished"
-CONF_ON_ERROR = "on_error"
-CONF_PLACEHOLDER = "placeholder"
 
-_LOGGER = logging.getLogger(__name__)
+# AUTO_LOAD = ["image"]
+# DEPENDENCIES = ["display", "http_request"]
+
+
+CONF_ON_LOAD_FINISHED = "on_load_finished"
+# CONF_ON_ERROR = "on_error"
+CONF_PLACEHOLDER = "placeholder"
+CONF_STORAGE_FS_ID = "storage_id"
+CONF_IMAGE_PATH = "path"
+
+# _LOGGER = logging.getLogger(__name__)
 
 local_image_ns = cg.esphome_ns.namespace("local_image")
-
 ImageFormat = local_image_ns.enum("ImageFormat")
+LocalImage = local_image_ns.class_("LocalImage", cg.Component, Image_)
+
 
 class Format:
     def __init__(self, image_type):
@@ -90,8 +95,6 @@ IMAGE_FORMATS = {
 }
 IMAGE_FORMATS.update({"JPG": IMAGE_FORMATS["JPEG"]})
 
-LocalImage = local_image_ns.class_("LocalImage", cg.PollingComponent, Image_)
-
 # Actions
 SetPathAction = local_image_ns.class_(
     "LocalImageSetPathAction", automation.Action, cg.Parented.template(LocalImage)
@@ -126,32 +129,26 @@ def remove_options(*options):
     }
 
 
-LOCAL_IMAGE_SCHEMA = (
-    IMAGE_SCHEMA.extend(remove_options(CONF_FILE, CONF_INVERT_ALPHA, CONF_DITHER))
-    .extend(
-        {
-            cv.Required(CONF_ID): cv.declare_id(LocalImage),
-            cv.GenerateID(sd_mmc_card.CONF_SD_MMC_CARD_ID): cv.use_id(sd_mmc_card.SdMmc),
-            # cv.GenerateID(CONF_HTTP_REQUEST_ID): cv.use_id(HttpRequestComponent),
-            # Online Image specific options
-            cv.Required(CONF_PATH): cv.string,
-            cv.Required(CONF_FORMAT): cv.one_of(*IMAGE_FORMATS, upper=True),
-            cv.Optional(CONF_PLACEHOLDER): cv.use_id(Image_),
-            cv.Optional(CONF_ON_LOAD_FINISHED): automation.validate_automation(
-                {
-                    cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(
-                        LoadFinishedTrigger
-                    ),
-                }
-            ),
-            cv.Optional(CONF_ON_ERROR): automation.validate_automation(
-                {
-                    cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(LoadErrorTrigger),
-                }
-            ),
-        }
-    )
-    .extend(cv.polling_component_schema("never"))
+LOCAL_IMAGE_SCHEMA = IMAGE_SCHEMA.extend(
+    remove_options(CONF_FILE, CONF_INVERT_ALPHA, CONF_DITHER)
+).extend(
+    {
+        cv.Required(CONF_ID): cv.declare_id(LocalImage),
+        cv.Required(CONF_STORAGE_FS_ID): cv.use_id(FileProvider),
+        cv.Required(CONF_IMAGE_PATH): cv.string,
+        cv.Required(CONF_FORMAT): cv.one_of(*IMAGE_FORMATS, upper=True),
+        cv.Optional(CONF_PLACEHOLDER): cv.use_id(Image_),
+        cv.Optional(CONF_ON_LOAD_FINISHED): automation.validate_automation(
+            {
+                cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(LoadFinishedTrigger),
+            }
+        ),
+        cv.Optional(CONF_ON_ERROR): automation.validate_automation(
+            {
+                cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(LoadErrorTrigger),
+            }
+        ),
+    }
 )
 
 CONFIG_SCHEMA = cv.Schema(
@@ -180,15 +177,18 @@ RELEASE_IMAGE_SCHEMA = automation.maybe_simple_id(
         cv.GenerateID(): cv.use_id(LocalImage),
     }
 )
+
 LOAD_IMAGE_SCHEMA = automation.maybe_simple_id(
     {
         cv.GenerateID(): cv.use_id(LocalImage),
     }
 )
 
-@automation.register_action("local_image.load", LocalImageLoadAction, LOAD_IMAGE_SCHEMA)
-@automation.register_action("local_image.release", ReleaseImageAction, RELEASE_IMAGE_SCHEMA)
 
+@automation.register_action("local_image.load", LocalImageLoadAction, LOAD_IMAGE_SCHEMA)
+@automation.register_action(
+    "local_image.release", ReleaseImageAction, RELEASE_IMAGE_SCHEMA
+)
 @automation.register_action("local_image.set_path", SetPathAction, SET_PATH_SCHEMA)
 async def local_image_action_to_code(config, action_id, template_arg, args):
     paren = await cg.get_variable(config[CONF_ID])
@@ -206,26 +206,21 @@ async def local_image_action_to_code(config, action_id, template_arg, args):
 async def sd_mmc_append_file_to_code(config, action_id, template_arg, args):
     parent = await cg.get_variable(config[CONF_ID])
     var = cg.new_Pvariable(action_id, template_arg, parent)
-    
+
     path_ = await cg.templatable(config[CONF_PATH], args, cg.std_string)
     cg.add(var.set_path(path_))
     return var
+
 
 async def to_code(config):
     image_format = IMAGE_FORMATS[config[CONF_FORMAT]]
     image_format.actions()
 
-    path = config[CONF_PATH]
     width, height = config.get(CONF_RESIZE, (0, 0))
     transparent = get_transparency_enum(config[CONF_TRANSPARENCY])
 
-    sdmmc = await cg.get_variable(config[sd_mmc_card.CONF_SD_MMC_CARD_ID])
-    # path = await cg.templatable(config[CONF_PATH], args, cg.std_string)
-
     var = cg.new_Pvariable(
         config[CONF_ID],
-        sdmmc,
-        path,
         width,
         height,
         image_format.enum,
@@ -233,12 +228,17 @@ async def to_code(config):
         transparent,
     )
     await cg.register_component(var, config)
-    
-    # await cg.register_parented(var, config[sd_mmc_card.CONF_SD_MMC_CARD_ID])
-    
-    # sdmmc = await cg.get_variable(config[sd_mmc_card.CONF_SD_MMC_CARD_ID])
-    # cg.add(var.set_sd_mmc_card(sdmmc))
-    
+
+    # fp_id = config.get(CONF_STORAGE_FS_ID)
+    # fp = await cg.get_variable(fp_id)
+    # cg.add(var.set_storage(fp))
+
+    file_provider = await cg.get_variable(config[CONF_STORAGE_FS_ID])
+    cg.add(var.set_storage(file_provider))
+
+    # path = await cg.get_variable(config[CONF_IMAGE_PATH])
+    cg.add(var.set_path(config[CONF_IMAGE_PATH]))
+
     if placeholder_id := config.get(CONF_PLACEHOLDER):
         placeholder = await cg.get_variable(placeholder_id)
         cg.add(var.set_placeholder(placeholder))
@@ -250,8 +250,3 @@ async def to_code(config):
     for conf in config.get(CONF_ON_ERROR, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
         await automation.build_automation(trigger, [(cg.uint8, "x")], conf)
-        
-        
-    # for conf in config.get(CONF_ON_VALUE, []):
-    #     trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
-    #     await automation.build_automation(trigger, [(float, "x")], conf)
