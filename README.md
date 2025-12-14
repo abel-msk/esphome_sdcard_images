@@ -1,7 +1,6 @@
 # About
 This repository contains ESPhome component for loading and display image file from locally accessed storage device.
-The device driver should imlement storage component. 
-For accessing sdcard is possible to use sdmmc component&
+The device driver should imlement storage component.  For accessing sdcard is possible to use sdmmc component. 
 
 # Install
 All code was moved under my own esphome fork and can be accessed via external component.
