@@ -15,6 +15,20 @@ external_components:
     components: [ storage, sdmmc, local_image ]
 ```
 
+Or it steel can be used from this repository (Significantly fewer files to download). In this case use:
+
+```yaml
+external_components:
+  - source: github://pr#11390
+    components: [ storage ]
+    refresh: 1h
+  - source: github://abel-msk/sdmmc
+    components: [ sdmmc ]
+  - source: github://abel-msk/local_image
+    components: [ local_image ]
+
+```
+
 # Sdmmc
 
 ## Base sdmmc Configuration
