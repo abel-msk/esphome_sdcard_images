@@ -143,9 +143,9 @@ class LocalImage : public Component, public image::Image {
 
   std::unique_ptr<ImageDecoder> decoder_{nullptr};
 
-  uint8_t *source_buffer_;
+  uint8_t *source_buffer_{nullptr};
   size_t source_size_ = 0;
-  uint8_t *buffer_;
+  uint8_t *buffer_{nullptr};
   bool image_loaded_ = false;
 
   ErrorCode last_error_;

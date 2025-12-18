@@ -50,11 +50,36 @@ LocalImage::LocalImage(int width, int height, ImageFormat format, ImageType type
 
 void LocalImage::dump_config() {
   ESP_LOGCONFIG(TAG, "LocalImage:");
-  ESP_LOGCONFIG(TAG, "   Format: %s", LOG_STR_ARG(format_));
-  ESP_LOGCONFIG(TAG, "   Type: %s", LOG_STR_ARG(this->get_type()));
+  switch (format_) {
+    case JPEG:
+      ESP_LOGCONFIG(TAG, "   Format: %s", "JPEG");
+      break;
+    case PNG:
+      ESP_LOGCONFIG(TAG, "   Format: %s", "PNG");
+      break;
+    case BMP:
+      ESP_LOGCONFIG(TAG, "   Format: %s", "BMP");
+    default:
+      ESP_LOGCONFIG(TAG, "   Format: %s", "AUTO");
+  }
+  switch (this->get_type()) {
+    case ImageType::IMAGE_TYPE_BINARY:
+      ESP_LOGCONFIG(TAG, "   Type: %s", "BINARY");
+      break;
+    case ImageType::IMAGE_TYPE_GRAYSCALE:
+      ESP_LOGCONFIG(TAG, "   Type: %s", "GRAYSCALE");
+      break;
+    case ImageType::IMAGE_TYPE_RGB565:
+      ESP_LOGCONFIG(TAG, "   Type: %s", "RGB565");
+      break;
+    case ImageType::IMAGE_TYPE_RGB:
+      ESP_LOGCONFIG(TAG, "   Type: %s", "RGB");
+      break;
+  }
+
   ESP_LOGCONFIG(TAG, "   Width: %d", this->get_width());
   ESP_LOGCONFIG(TAG, "   Height: %d", this->get_height());
-  ESP_LOGCONFIG(TAG, "   Path: %d", this->path_.c_str());
+  ESP_LOGCONFIG(TAG, "   Path: %s", this->path_.c_str());
 };
 
 void LocalImage::setup() {
@@ -80,7 +105,7 @@ void LocalImage::draw(int x, int y, display::Display *display, Color color_on, C
 void LocalImage::free_source_buffer_() {
   if (source_buffer_ != nullptr) {
     this->allocator_.deallocate(this->source_buffer_, this->source_size_);
-    this->source_buffer_ == nullptr;
+    this->source_buffer_ = nullptr;
   }
   this->source_size_ = 0;
 
@@ -91,7 +116,7 @@ void LocalImage::free_source_buffer_() {
 }
 
 void LocalImage::free_image_buffer_() {
-  if (this->buffer_) {
+  if (this->buffer_ != nullptr) {
     ESP_LOGV(TAG, "Deallocating image buffer...");
     this->allocator_.deallocate(this->buffer_, this->get_buffer_size_());
     this->data_start_ = nullptr;
@@ -102,18 +127,6 @@ void LocalImage::free_image_buffer_() {
     this->buffer_height_ = 0;
   }
 }
-
-// size_t LocalImage::create_image_buffer_(size_t new_size) {
-//   ESP_LOGD(TAG, "Allocating new buffer of %zu bytes", new_size);
-//     this->buffer_ = this->allocator_.allocate(new_size);
-//     if (this->buffer_ == nullptr) {
-//       ESP_LOGE(TAG, "allocation of %zu bytes failed. Biggest block in heap: %zu Bytes", new_size,
-//               this->allocator_.get_max_free_block_size());
-//       this->last_error_ = ErrorCode::NO_MEM;
-//       return 0;
-//     }
-//   return new_size;
-// }
 
 size_t LocalImage::create_image_buffer(int width_in, int height_in) {
   int width = this->fixed_width_;
@@ -127,10 +140,14 @@ size_t LocalImage::create_image_buffer(int width_in, int height_in) {
   }
 
   size_t new_size = this->get_buffer_size_(width, height);
-  if ((this->buffer_) && (new_size == this->get_buffer_size_())) {
+  if ((this->buffer_ != nullptr) && (new_size <= this->get_buffer_size_())) {
+    ESP_LOGD(TAG, "Image buffer do not need to allocate");
     // Buffer already allocated => no need to resize
     return new_size;
   }
+  // if (new_size > this->get_buffer_size_()) {
+  this->free_image_buffer_();
+  // }
 
   ESP_LOGD(TAG, "Allocating new buffer of %zu bytes", new_size);
   this->buffer_ = this->allocator_.allocate(new_size);
@@ -159,7 +176,7 @@ void LocalImage::load_image() {
   //
   //  If free memory from previous loading. if any.
   //
-  if (this->source_buffer_) {
+  if (this->source_buffer_ != nullptr) {
     this->free_source_buffer_();
   }
 
